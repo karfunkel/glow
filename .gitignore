@@ -1,0 +1,10 @@
+target
+build
+out
+.gradle
+*.iml
+*.iws
+*.ipr
+.idea
+.DS_Store
+.gradletasknamecache
