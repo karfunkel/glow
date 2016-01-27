@@ -9,7 +9,9 @@ class Step {
     Step previousSibling
     Step previousStep
     Map<String, Step> children = [:]
-    Closure action
+    List<Closure> actions
+    Closure setup
+    Closure cleanup
     Closure onSuccess
     Closure onError
     Map attributes
@@ -41,13 +43,19 @@ class Step {
     }
 
     def call() {
+        // TODO: Exception handling in catch and finally
         if (action) {
             try {
-                runClosure(action)
+                runClosure(setup)
+                actions.each { action ->
+                    runClosure(action)
+                }
                 runClosure(onSuccess ?: Glow.CONTINUE)
             } catch (e) {
                 if (!e.is(GlowException.CANCEL))
                     runClosure(onError ?: Glow.CANCEL, e)
+            } finally {
+                runClosure(cleanup)
             }
         } else {
             runClosure(Glow.DEFAULT_ACTION)

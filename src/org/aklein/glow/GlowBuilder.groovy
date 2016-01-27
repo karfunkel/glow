@@ -9,9 +9,11 @@ class GlowBuilder extends FactoryBuilderSupport {
     def registerFactories() {
         registerFactory("glow", new GlowFactory())
         registerFactory("step", new StepFactory())
+        registerFactory("setup", new ClosureFactory("setup"))
         registerFactory("onError", new ClosureFactory("onError"))
         registerFactory("onSuccess", new ClosureFactory("onSuccess"))
         registerFactory("action", new ClosureFactory("action"))
+        registerFactory("cleanup", new ClosureFactory("cleanup"))
     }
 
     def registerConstants() {
@@ -125,7 +127,10 @@ class ClosureFactory extends AbstractFactory {
     @Override
     void setParent(FactoryBuilderSupport builder, Object parent, Object child) {
         if (parent instanceof Step) {
-            parent[event] = child.closure
+            if(!parent.hasProperty(event))
+                parent.actions << child.closure
+            else
+                parent[event] = child.closure
         }
     }
 }
