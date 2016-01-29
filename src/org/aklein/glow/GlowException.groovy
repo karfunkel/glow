@@ -1,7 +1,11 @@
 package org.aklein.glow
 
 class GlowException extends RuntimeException {
-    final static GlowException CANCEL = new GlowException()
+    final static GlowException CANCEL = new GlowException('CANCEL')
+    final static GlowException NEXT = new GlowException('NEXT')
+    final static GlowException PREVIOUS = new GlowException('PREVIOUS')
+    final static GlowException NEXT_SIBLING = new GlowException('NEXT_SIBLING')
+    final static GlowException PREVIOUS_SIBLING = new GlowException('PREVIOUS_SIBLING')
 
     GlowException() {
         super()

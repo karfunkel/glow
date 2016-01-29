@@ -10,10 +10,11 @@ class GlowBuilder extends FactoryBuilderSupport {
         registerFactory("glow", new GlowFactory())
         registerFactory("step", new StepFactory())
         registerFactory("setup", new ClosureFactory("setup"))
+        registerFactory("cleanup", new ClosureFactory("cleanup"))
         registerFactory("onError", new ClosureFactory("onError"))
         registerFactory("onSuccess", new ClosureFactory("onSuccess"))
+        registerFactory("onCancel", new ClosureFactory("onCancel"))
         registerFactory("action", new ClosureFactory("action"))
-        registerFactory("cleanup", new ClosureFactory("cleanup"))
     }
 
     def registerConstants() {
@@ -31,7 +32,18 @@ class GlowBuilder extends FactoryBuilderSupport {
 class GlowFactory extends AbstractFactory {
     @Override
     Object newInstance(FactoryBuilderSupport builder, Object name, Object value, Map attributes) throws InstantiationException, IllegalAccessException {
-        return new Glow()
+        Closure setup = attributes.remove('setup')
+        Closure cleanup = attributes.remove('cleanup')
+        Closure onError = attributes.remove('onError')
+        Closure onSuccess = attributes.remove('onSuccess')
+        Closure onCancel = attributes.remove('onCancel')
+        Glow glow = new Glow()
+        if (setup) glow.setup = setup
+        if (cleanup) glow.cleanup = cleanup
+        if (onError) glow.onError = onError
+        if (onSuccess) glow.onSuccess = onSuccess
+        if (onCancel) glow.onCancel = onCancel
+        return glow
     }
 
     @Override
@@ -43,7 +55,9 @@ class GlowFactory extends AbstractFactory {
         while(nextStep = lastStep?.next) {
             nextStep.previousStep = lastStep
             lastStep = nextStep
+            glow.current = glow.nextStep
         }
+        glow.reset()
     }
 }
 
@@ -52,13 +66,19 @@ class StepFactory extends AbstractFactory {
     Object newInstance(FactoryBuilderSupport builder, Object name, Object value, Map attributes) throws InstantiationException, IllegalAccessException {
         String id = attributes.remove('id') ?: value
         Closure action = attributes.remove('action')
-        Closure onSuccess = attributes.remove('onSuccess')
+        Closure setup = attributes.remove('setup')
+        Closure cleanup = attributes.remove('cleanup')
         Closure onError = attributes.remove('onError')
+        Closure onSuccess = attributes.remove('onSuccess')
+        Closure onCancel = attributes.remove('onCancel')
         Step step = new Step(attributes: [*:attributes])
         if (id) step.id = id
-        if (action) step.action = action
-        if (onSuccess) step.onSuccess = onSuccess
+        if (action) step.actions << action
+        if (setup) step.setup = setup
+        if (cleanup) step.cleanup = cleanup
         if (onError) step.onError = onError
+        if (onSuccess) step.onSuccess = onSuccess
+        if (onCancel) step.onCancel = onCancel
         attributes.clear()
         return step
     }
@@ -115,23 +135,22 @@ class ClosureFactory extends AbstractFactory {
 
     @Override
     boolean onNodeChildren(FactoryBuilderSupport builder, Object node, Closure childContent) {
-        node.closure = childContent
+        def parent = builder.current
+        if (parent instanceof Step) {
+            if(!parent.hasProperty(event))
+                parent.actions << childContent
+            else
+                parent[event] = childContent
+        } else if (parent instanceof Glow) {
+            if(parent.hasProperty(event))
+                parent[event] = childContent
+        }
         return false
     }
 
     @Override
     Object newInstance(FactoryBuilderSupport builder, Object name, Object value, Map attributes) throws InstantiationException, IllegalAccessException {
         [:]
-    }
-
-    @Override
-    void setParent(FactoryBuilderSupport builder, Object parent, Object child) {
-        if (parent instanceof Step) {
-            if(!parent.hasProperty(event))
-                parent.actions << child.closure
-            else
-                parent[event] = child.closure
-        }
     }
 }
 

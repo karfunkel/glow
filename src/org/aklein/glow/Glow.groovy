@@ -15,7 +15,14 @@ class Glow {
 
     Step current
     Map<String, Step> steps = [:]
+    Map<String, Object> context = [:]
     Step firstChild
+
+    Closure setup
+    Closure cleanup
+    Closure onSuccess
+    Closure onCancel
+    Closure onError
 
     Step getLastChild() {
         Step last = firstChild
@@ -29,33 +36,62 @@ class Glow {
             throw new GlowException('Cannot start a glow without steps')
         }
         current = firstChild
-        current()
+        current.call()
     }
 
     void cancel() {
         throw GlowException.CANCEL
     }
 
-    Step getNext() {
+    void next() {
+        throw GlowException.NEXT
+    }
+
+    void previous() {
+        throw GlowException.PREVIOUS
+    }
+
+    void nextSibling() {
+        throw GlowException.NEXT_SIBLING
+    }
+
+    void previousSibling() {
+        throw GlowException.PREVIOUS_SIBLING
+    }
+
+    def call(Step step) {
+        current = step
+        return step()
+    }
+
+    Step getNextStep() {
         if (!current)
             throw new GlowException('Glow has not been started')
         else {
             if (current.firstChild)
-                current = current.firstChild
+                return current.firstChild
             else {
-                while (!current.nextSibling) {
-                    current = current.parent
-                    if (!current)
+                def cur = current
+                while (!cur.nextSibling) {
+                    if (!cur.parent)
                         return null
+                    cur = cur.parent
                 }
-                current = current.nextSibling
+                return cur.nextSibling
             }
         }
-        return current
     }
 
-    Step getPrevious() {
+    Step getPreviousStep() {
         return current.previousStep
+    }
+
+    Step getNextSiblingStep() {
+        return current.nextSibling
+    }
+
+    Step getPreviousSiblingStep() {
+        return current.previousSibling
     }
 
     void retry() {
@@ -66,11 +102,30 @@ class Glow {
         current = null
     }
 
-    def propertyMissing(String name) {
-        return steps[name]
+    boolean onEvent(String event, Closure defaultAction = null, Object... args) {
+        Closure closure = this."$event" ?: defaultAction
+        this.bubble = null
+        if (closure)
+            runClosure(closure, args)
+        return false
     }
 
-    def propertyMissing(String name, def arg) {
-        throw new UnsupportedOperationException('You may not add steps manually')
+    private def runClosure(Closure closure, Object... args) {
+        closure.delegate = this
+        closure.resolveStrategy = Closure.DELEGATE_FIRST
+        return closure(*args)
+    }
+
+    def propertyMissing(String name) {
+        return context[name]
+    }
+
+    def propertyMissing(String name, def value) {
+        context[name] = value
+    }
+
+    def methodMissing(String name, def args) {
+        def caller = this."$name"
+        return caller?.call(args)
     }
 }

@@ -9,10 +9,12 @@ class Step {
     Step previousSibling
     Step previousStep
     Map<String, Step> children = [:]
-    List<Closure> actions
+    List<Closure> actions = []
+
     Closure setup
     Closure cleanup
     Closure onSuccess
+    Closure onCancel
     Closure onError
     Map attributes
 
@@ -23,6 +25,10 @@ class Step {
         return glow
     }
 
+    String getPath() {
+        return parent ? "${parent.getPath()}.$id" : id
+    }
+
     Step getLastChild() {
         Step last = firstChild
         while (last?.nextChild)
@@ -31,41 +37,93 @@ class Step {
     }
 
     Step getNext() {
-        glow.next
+        glow.nextStep
     }
 
     Step getPrevious() {
-        glow.previous
+        glow.previousStep
     }
 
     Step current() {
         glow.current
     }
 
-    def call() {
-        // TODO: Exception handling in catch and finally
-        if (action) {
-            try {
-                runClosure(setup)
-                actions.each { action ->
-                    runClosure(action)
-                }
-                runClosure(onSuccess ?: Glow.CONTINUE)
-            } catch (e) {
-                if (!e.is(GlowException.CANCEL))
-                    runClosure(onError ?: Glow.CANCEL, e)
-            } finally {
-                runClosure(cleanup)
+    def call(Object... args) {
+        def actionList = [] + actions
+        if (!actionList)
+            actionList << Glow.DEFAULT_ACTION
+
+        onEvent('setup', false)
+        try {
+            actionList.each { action ->
+                runClosure(action)
             }
-        } else {
-            runClosure(Glow.DEFAULT_ACTION)
+            onEvent('onSuccess', false)
+        } catch (e) {
+            stepControl(e)
+        } finally {
+            // TODO: Handle exception in finally
+            onEvent('cleanup', false)
+        }
+    }
+
+    def stepControl(Exception e) {
+        try {
+            switch (e) {
+                case GlowException.NEXT:
+                    onEvent('onSuccess', false)
+                    getGlow().call(getGlow().nextStep)
+                    break
+                case GlowException.PREVIOUS:
+                    onEvent('onSuccess', false)
+                    getGlow().call(getGlow().previousStep)
+                    break
+                case GlowException.NEXT_SIBLING:
+                    onEvent('onSuccess', false)
+                    getGlow().call(getGlow().nextSiblingStep)
+                    break
+                case GlowException.PREVIOUS_SIBLING:
+                    onEvent('onSuccess', false)
+                    getGlow().call(getGlow().previousSiblingStep)
+                    break
+                case GlowException.CANCEL:
+                    onEvent('onCancel')
+                    break
+                default:
+                    onEvent('onError', e)
+            }
+        } catch(ex) {
+            stepControl(ex)
         }
     }
 
     private def runClosure(Closure closure, Object... args) {
-        closure.delegate = getGlow()
-        closure.resolveStrategy = Closure.DELEGATE_FIRST
-        return closure(*args)
+        if(closure) {
+            closure.delegate = getGlow()
+            closure.resolveStrategy = Closure.DELEGATE_FIRST
+            return closure(*args)
+        }
+        return null
+    }
+
+    boolean onEvent(String event, boolean bubbling = true,  Object... args) {
+        Closure closure = this."$event"
+        boolean bubble = true
+        def oldBubble = getGlow().bubble
+        getGlow().bubble = this
+        try {
+            if (closure)
+                bubble = runClosure(closure, args)
+            if (bubbling && bubble) {
+                if (parent)
+                    return parent.onEvent(event, args)
+                else
+                    return getGlow().onEvent(event, args)
+            }
+            return false
+        } finally {
+            getGlow().bubble = oldBubble
+        }
     }
 
     def propertyMissing(String name) {
@@ -78,5 +136,10 @@ class Step {
 
     def propertyMissing(String name, def arg) {
         attributes[name] = arg
+    }
+
+    def methodMissing(String name, def args) {
+        def caller = this."$name"
+        return caller?.call(args)
     }
 }
