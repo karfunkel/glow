@@ -41,11 +41,11 @@ class GlowSpec extends Specification {
                 }
             }
             step {
-                step {
+                step ('hello', name: 'Blah'){
                     step()
                     step()
                 }
-                step('hello', name: 'Blah') {
+                step {
                     step()
                     step()
                 }
@@ -61,7 +61,7 @@ class GlowSpec extends Specification {
         glow.steps._1.id == '_1'
         glow._0.id == '_0'
         glow._1.id == '_1'
-        //glow._3.firstChild.id == 'hello'
-        glow._3.hello.name == 'Blah'
+        glow._2.firstChild.id == 'hello'
+        glow._2.hello.name == 'Blah'
     }
 }
