@@ -23,6 +23,14 @@ class Glow {
     Closure onCancel
     Closure onError
 
+    Glow(Map<String, Object> context = [:]) {
+        this.context = context
+    }
+
+    Glow(Binding context) {
+        this.context = context.variables
+    }
+
     Step getLastChild() {
         Step last = firstChild
         while (last?.nextChild)
@@ -103,7 +111,7 @@ class Glow {
 
     boolean onEvent(String event, Closure defaultAction = null, Object... args) {
         Closure closure = this."$event" ?: defaultAction
-        this.bubble = null
+        context.remove('bubble')
         if (closure)
             runClosure(closure, args)
         return false
@@ -116,7 +124,10 @@ class Glow {
     }
 
     def propertyMissing(String name) {
-        return context[name]
+        if(context.containsKey(name))
+            context[name]
+        else
+            throw new MissingPropertyException(name, Glow)
     }
 
     def propertyMissing(String name, def value) {

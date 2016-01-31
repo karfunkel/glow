@@ -102,10 +102,10 @@ class Step {
         if (closure) {
             closure.delegate = getGlow()
             closure.resolveStrategy = Closure.DELEGATE_FIRST
-            def oldBubble = closure.delegate.bubble
-            closure.delegate.bubble = this
+            def oldBubble = getGlow().context.bubble
+            getGlow().context.bubble = this
             def result = closure(*args)
-            closure.delegate.bubble = oldBubble
+            getGlow().context.bubble = oldBubble
             return result
         }
         return null
@@ -114,8 +114,8 @@ class Step {
     boolean onEvent(String event, boolean bubbling = true, Object... args) {
         Closure closure = this."$event"
         boolean bubble = true
-        def oldBubble = getGlow().bubble
-        getGlow().bubble = this
+        def oldBubble = getGlow().context.bubble
+        getGlow().context.bubble = this
         try {
             if (closure)
                 bubble = runClosure(closure, args)
@@ -127,7 +127,7 @@ class Step {
             }
             return false
         } finally {
-            getGlow().bubble = oldBubble
+            getGlow().context.bubble = oldBubble
         }
     }
 
