@@ -66,12 +66,12 @@ class Glow {
         throw GlowException.PREVIOUS_SIBLING
     }
 
-    void previousSibling() {
-        throw GlowException.PREVIOUS_SIBLING
-    }
-
     void jump(Step to) {
         throw new GlowException(jumpStep: to)
+    }
+
+    void retry(int maximum = 1) {
+        throw new GlowException(maximum: maximum)
     }
 
     def call(Step step) {
@@ -107,10 +107,6 @@ class Glow {
 
     Step getPreviousSiblingStep() {
         return current.previousSibling
-    }
-
-    void retry() {
-        current()
     }
 
     void reset() {

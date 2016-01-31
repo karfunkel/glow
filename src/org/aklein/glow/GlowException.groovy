@@ -8,6 +8,7 @@ class GlowException extends RuntimeException {
     final static GlowException PREVIOUS_SIBLING = new GlowException('PREVIOUS_SIBLING')
 
     Step jumpStep
+    int maximum = 0
 
     GlowException() {
         super()

@@ -12,6 +12,8 @@ class Step {
     Map<String, Step> children = [:]
     List<Closure> actions = []
 
+    int retriesLeft = -1
+
     Closure setup
     Closure cleanup
     Closure onCancel
@@ -77,11 +79,22 @@ class Step {
                     return getGlow().nextSiblingStep
                 case GlowException.PREVIOUS_SIBLING:
                     return getGlow().previousSiblingStep
-                case { it instanceof GlowException && it.jumpStep }:
-                    return e.jumpStep
                 case GlowException.CANCEL:
                     onEvent('onCancel')
                     return null
+                case { it instanceof GlowException && it.jumpStep }:
+                    return e.jumpStep
+                case { it instanceof GlowException && it.maximum }:
+                    Step cur = getGlow().current
+                    if (cur.retriesLeft == -1) { // First time
+                        cur.retriesLeft = e.maximum
+                        return cur
+                    } else if (cur.retriesLeft == 0) { // Last time
+                        // continue with the default -> onError
+                    } else {
+                        cur.retriesLeft--
+                        return cur
+                    }
                 default:
                     if (rethrow)
                         throw e
@@ -95,7 +108,7 @@ class Step {
         } catch (ex) {
             throw ex
         } finally {
-            if(!rethrow)
+            if (!rethrow)
                 onEvent('cleanup', false)
         }
     }
