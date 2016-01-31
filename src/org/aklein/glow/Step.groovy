@@ -77,6 +77,8 @@ class Step {
                     return getGlow().nextSiblingStep
                 case GlowException.PREVIOUS_SIBLING:
                     return getGlow().previousSiblingStep
+                case { it instanceof GlowException && it.jumpStep }:
+                    return e.jumpStep
                 case GlowException.CANCEL:
                     onEvent('onCancel')
                     return null

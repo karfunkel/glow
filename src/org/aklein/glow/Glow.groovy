@@ -66,6 +66,14 @@ class Glow {
         throw GlowException.PREVIOUS_SIBLING
     }
 
+    void previousSibling() {
+        throw GlowException.PREVIOUS_SIBLING
+    }
+
+    void jump(Step to) {
+        throw new GlowException(jumpStep: to)
+    }
+
     def call(Step step) {
         current = step
         return step()

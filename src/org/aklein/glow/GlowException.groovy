@@ -7,6 +7,8 @@ class GlowException extends RuntimeException {
     final static GlowException NEXT_SIBLING = new GlowException('NEXT_SIBLING')
     final static GlowException PREVIOUS_SIBLING = new GlowException('PREVIOUS_SIBLING')
 
+    Step jumpStep
+
     GlowException() {
         super()
     }
