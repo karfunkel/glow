@@ -83,17 +83,23 @@ class Step {
         try {
             switch (e) {
                 case GlowException.NEXT:
+                    getGlow().current.retriesLeft = -1
                     return getGlow().nextStep
                 case GlowException.PREVIOUS:
+                    getGlow().current.retriesLeft = -1
                     return getGlow().previousStep
                 case GlowException.NEXT_SIBLING:
+                    getGlow().current.retriesLeft = -1
                     return getGlow().nextSiblingStep
                 case GlowException.PREVIOUS_SIBLING:
+                    getGlow().current.retriesLeft = -1
                     return getGlow().previousSiblingStep
                 case GlowException.CANCEL:
+                    getGlow().current.retriesLeft = -1
                     onEvent('onCancel', CANCEL_REASON_MANUAL)
                     return null
                 case { it instanceof GlowException && it.jumpStep }: // Jump
+                    getGlow().current.retriesLeft = -1
                     return e.jumpStep
                 case { it instanceof GlowException && it.maximum }:  // Retry
                     Step cur = getGlow().current
