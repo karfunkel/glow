@@ -1,6 +1,10 @@
 package org.aklein.glow
 
 class Step {
+    static final String CANCEL_REASON_MANUAL = 'MANUAL'
+    static final String CANCEL_REASON_RETRY = 'RETRY'
+    static final String CANCEL_REASON_ERROR = 'ERROR'
+
     String id
     Step parent
     Glow glow
@@ -38,6 +42,13 @@ class Step {
         return last
     }
 
+    Step getLastSibling() {
+        Step last = this
+        while (last?.nextSibling)
+            last = last?.nextSibling
+        return last
+    }
+
     Step getNext() {
         glow.nextStep
     }
@@ -68,7 +79,7 @@ class Step {
         }
     }
 
-    Step stepControl(Exception e, boolean rethrow = false) {
+    Step stepControl(Exception e, boolean rethrow = false, Exception lastException = null) {
         try {
             switch (e) {
                 case GlowException.NEXT:
@@ -80,17 +91,28 @@ class Step {
                 case GlowException.PREVIOUS_SIBLING:
                     return getGlow().previousSiblingStep
                 case GlowException.CANCEL:
-                    onEvent('onCancel')
+                    onEvent('onCancel', CANCEL_REASON_MANUAL)
                     return null
-                case { it instanceof GlowException && it.jumpStep }:
+                case { it instanceof GlowException && it.jumpStep }: // Jump
                     return e.jumpStep
-                case { it instanceof GlowException && it.maximum }:
+                case { it instanceof GlowException && it.maximum }:  // Retry
                     Step cur = getGlow().current
                     if (cur.retriesLeft == -1) { // First time
                         cur.retriesLeft = e.maximum
+                        cur.retriesLeft--
                         return cur
                     } else if (cur.retriesLeft == 0) { // Last time
-                        // continue with the default -> onError
+                        cur.retriesLeft--
+                        try {
+                            onEvent('onError', lastException)
+                            return null
+                        } catch (ex) {
+                            if (ex instanceof GlowException && ex.maximum) {  // Retry
+                                onEvent('onCancel', CANCEL_REASON_RETRY)
+                                return null
+                            } else
+                                return stepControl(ex, true)
+                        }
                     } else {
                         cur.retriesLeft--
                         return cur
@@ -100,9 +122,10 @@ class Step {
                         throw e
                     try {
                         onEvent('onError', e)
+                        onEvent('onCancel', CANCEL_REASON_ERROR)
                         return null
                     } catch (ex) {
-                        return stepControl(ex, true)
+                        return stepControl(ex, true, e)
                     }
             }
         } catch (ex) {

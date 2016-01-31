@@ -92,7 +92,7 @@ class StepFactory extends AbstractFactory {
 
             Step lastChild = parent?.lastChild
             step.previousSibling = lastChild
-            lastChild?.nextSibling = step
+            lastChild?.lastSibling?.nextSibling = step
 
             parent.children[step.id] = step
             step.parent = parent
@@ -108,7 +108,7 @@ class StepFactory extends AbstractFactory {
 
                 Step lastChild = parent?.lastChild
                 step.previousSibling = lastChild
-                lastChild?.nextSibling = step
+                lastChild?.lastSibling?.nextSibling = step
 
                 parent.steps[step.id] = step
                 step.parent = null

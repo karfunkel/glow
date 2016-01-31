@@ -266,7 +266,6 @@ class GlowSpec extends Specification {
         def counter = 0
 
         Glow glow = builder.glow() {
-
             step {
                 action {
                     counter ++
@@ -280,6 +279,6 @@ class GlowSpec extends Specification {
         glow.start()
 
         then:
-        counter == 2
+        counter == 3
     }
 }
