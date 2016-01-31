@@ -68,7 +68,7 @@ class GlowSpec extends Specification {
         steps._0._0.onError.is Glow.CANCEL
         steps._0._1.onError() == 'Blubb'
         steps._1._0._1.actions.size() == 3
-        steps._1._0._1.actions.collect {it()} == ['A','B','C']
+        steps._1._0._1.actions.collect { it() } == ['A', 'B', 'C']
 
     }
 
@@ -101,7 +101,7 @@ class GlowSpec extends Specification {
                             msg << "action_$bubble.path"
                             throw new RuntimeException('Test')
                         }
-                        onError { msg << "err_$bubble.path"}
+                        onError { msg << "err_$bubble.path" }
                         setup { msg << "setup_$bubble.path" }
                         cleanup { msg << "cleanup_$bubble.path" }
                     }
@@ -178,7 +178,7 @@ class GlowSpec extends Specification {
                             msg << "action_$bubble.path"
                             cancel()
                         }
-                        onCancel { msg << "cancel_$bubble.path"}
+                        onCancel { msg << "cancel_$bubble.path" }
                         setup { msg << "setup_$bubble.path" }
                         cleanup { msg << "cleanup_$bubble.path" }
                     }
@@ -189,5 +189,97 @@ class GlowSpec extends Specification {
 
         then:
         msg == ['setup_a', 'cleanup_a', 'setup_a.aa', 'cleanup_a.aa', 'setup_a.aa.aaa', 'action_a.aa.aaa', 'cleanup_a.aa.aaa', 'setup_a.aa.aab', 'action_a.aa.aab', 'cancel_a.aa.aab', 'cancel_a.aa', 'cancel_a', 'cancel_glow', 'cleanup_a.aa.aab']
+    }
+
+    void "Do multiple steps progress in correct order automatically using closure notation?"() {
+        when:
+        def msg = []
+        Glow glow = builder.glow {
+            step {
+                setup { msg << 'setup1' }
+                action { msg << 'action1' }
+                cleanup { msg << 'cleanup1' }
+            }
+            step {
+                setup { msg << 'setup2' }
+                action { msg << 'action2' }
+                cleanup { msg << 'cleanup2' }
+            }
+            step {
+                setup { msg << 'setup3' }
+                action { msg << 'action3' }
+                cleanup { msg << 'cleanup3' }
+            }
+        }
+        glow.start()
+        then:
+        msg == ['setup1', 'action1', 'cleanup1', 'setup2', 'action2', 'cleanup2', 'setup3', 'action3', 'cleanup3']
+    }
+
+    void "Do multiple steps progress in correct order automatically using paren notation?"() {
+        when:
+        def msg = []
+        Glow glow = builder.glow {
+            step(
+                    setup: { msg << 'setup1' },
+                    action: { msg << 'action1' },
+                    cleanup: { msg << 'cleanup1' }
+            )
+            step(
+                    setup: { msg << 'setup2' },
+                    action: { msg << 'action2' },
+                    cleanup: { msg << 'cleanup2' }
+            )
+        }
+        glow.start()
+        then:
+        msg == ['setup1', 'action1', 'cleanup1', 'setup2', 'action2', 'cleanup2']
+    }
+
+    void "Do all notations function the same?"() {
+
+        when:
+
+        Glow glow = builder.glow() {
+            step(
+                    action: {
+                        println "paren: owner: ${owner.getClass()}"
+                        println "paren: delegate: ${delegate.getClass()}"
+                    }
+            )
+            step {
+                action {
+                    println "closure: owner: ${owner.getClass()}"
+                    println "closure: delegate: ${delegate.getClass()}"
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        true
+    }
+
+    void "Does retry work?"() {
+
+        when:
+        def counter = 0
+
+        Glow glow = builder.glow() {
+
+            step {
+                action {
+                    counter ++
+                    throw new RuntimeException('Test')
+                }
+                onError {
+                    retry(2)
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        counter == 2
     }
 }
