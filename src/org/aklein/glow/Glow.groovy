@@ -20,7 +20,6 @@ class Glow {
 
     Closure setup
     Closure cleanup
-    Closure onSuccess
     Closure onCancel
     Closure onError
 

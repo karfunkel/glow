@@ -12,7 +12,6 @@ class GlowBuilder extends FactoryBuilderSupport {
         registerFactory("setup", new ClosureFactory("setup"))
         registerFactory("cleanup", new ClosureFactory("cleanup"))
         registerFactory("onError", new ClosureFactory("onError"))
-        registerFactory("onSuccess", new ClosureFactory("onSuccess"))
         registerFactory("onCancel", new ClosureFactory("onCancel"))
         registerFactory("action", new ClosureFactory("action"))
     }
@@ -35,13 +34,11 @@ class GlowFactory extends AbstractFactory {
         Closure setup = attributes.remove('setup')
         Closure cleanup = attributes.remove('cleanup')
         Closure onError = attributes.remove('onError')
-        Closure onSuccess = attributes.remove('onSuccess')
         Closure onCancel = attributes.remove('onCancel')
         Glow glow = new Glow()
         if (setup) glow.setup = setup
         if (cleanup) glow.cleanup = cleanup
         if (onError) glow.onError = onError
-        if (onSuccess) glow.onSuccess = onSuccess
         if (onCancel) glow.onCancel = onCancel
         return glow
     }
@@ -69,15 +66,16 @@ class StepFactory extends AbstractFactory {
         Closure setup = attributes.remove('setup')
         Closure cleanup = attributes.remove('cleanup')
         Closure onError = attributes.remove('onError')
-        Closure onSuccess = attributes.remove('onSuccess')
         Closure onCancel = attributes.remove('onCancel')
+        Boolean autoNext = attributes.remove('autoNext')
+        autoNext = autoNext == null ? true : autoNext
         Step step = new Step(attributes: [*:attributes])
+        step.autoNext = autoNext
         if (id) step.id = id
         if (action) step.actions << action
         if (setup) step.setup = setup
         if (cleanup) step.cleanup = cleanup
         if (onError) step.onError = onError
-        if (onSuccess) step.onSuccess = onSuccess
         if (onCancel) step.onCancel = onCancel
         attributes.clear()
         return step

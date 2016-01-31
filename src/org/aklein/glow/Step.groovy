@@ -4,6 +4,7 @@ class Step {
     String id
     Step parent
     Glow glow
+    boolean autoNext
     Step firstChild
     Step nextSibling
     Step previousSibling
@@ -13,7 +14,6 @@ class Step {
 
     Closure setup
     Closure cleanup
-    Closure onSuccess
     Closure onCancel
     Closure onError
     Map attributes
@@ -50,63 +50,68 @@ class Step {
 
     def call(Object... args) {
         def actionList = [] + actions
-        if (!actionList)
+        if (autoNext) {
             actionList << Glow.DEFAULT_ACTION
-
-        onEvent('setup', false)
+            autoNext = false
+        }
         try {
+            onEvent('setup', false)
             actionList.each { action ->
                 runClosure(action)
             }
-            onEvent('onSuccess', false)
         } catch (e) {
-            stepControl(e)
-        } finally {
-            // TODO: Handle exception in finally
-            onEvent('cleanup', false)
+            Step next = stepControl(e)
+            if (next)
+                getGlow().call(next)
         }
     }
 
-    def stepControl(Exception e) {
+    Step stepControl(Exception e, boolean rethrow = false) {
         try {
             switch (e) {
                 case GlowException.NEXT:
-                    onEvent('onSuccess', false)
-                    getGlow().call(getGlow().nextStep)
-                    break
+                    return getGlow().nextStep
                 case GlowException.PREVIOUS:
-                    onEvent('onSuccess', false)
-                    getGlow().call(getGlow().previousStep)
-                    break
+                    return getGlow().previousStep
                 case GlowException.NEXT_SIBLING:
-                    onEvent('onSuccess', false)
-                    getGlow().call(getGlow().nextSiblingStep)
-                    break
+                    return getGlow().nextSiblingStep
                 case GlowException.PREVIOUS_SIBLING:
-                    onEvent('onSuccess', false)
-                    getGlow().call(getGlow().previousSiblingStep)
-                    break
+                    return getGlow().previousSiblingStep
                 case GlowException.CANCEL:
                     onEvent('onCancel')
-                    break
+                    return null
                 default:
-                    onEvent('onError', e)
+                    if (rethrow)
+                        throw e
+                    try {
+                        onEvent('onError', e)
+                        return null
+                    } catch (ex) {
+                        return stepControl(ex, true)
+                    }
             }
-        } catch(ex) {
-            stepControl(ex)
+        } catch (ex) {
+            throw ex
+        } finally {
+            if(!rethrow)
+                onEvent('cleanup', false)
         }
     }
 
     private def runClosure(Closure closure, Object... args) {
-        if(closure) {
+        if (closure) {
             closure.delegate = getGlow()
             closure.resolveStrategy = Closure.DELEGATE_FIRST
-            return closure(*args)
+            def oldBubble = closure.delegate.bubble
+            closure.delegate.bubble = this
+            def result = closure(*args)
+            closure.delegate.bubble = oldBubble
+            return result
         }
         return null
     }
 
-    boolean onEvent(String event, boolean bubbling = true,  Object... args) {
+    boolean onEvent(String event, boolean bubbling = true, Object... args) {
         Closure closure = this."$event"
         boolean bubble = true
         def oldBubble = getGlow().bubble

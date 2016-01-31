@@ -75,44 +75,119 @@ class GlowSpec extends Specification {
     void "Does Eventbubbling work?"() {
         when:
         def msg = []
-        println msg.dump()
         Glow glow = builder.glow {
             onError { msg << 'err_glow' }
             setup { msg << 'setup_glow' }
             cleanup { msg << 'cleanup_glow' }
-            onSuccess { msg << 'suc_glow' }
             step('a') {
                 onError { msg << "err_$bubble.path" }
                 setup { msg << "setup_$bubble.path" }
                 cleanup { msg << "cleanup_$bubble.path" }
-                onSuccess { msg << "suc_$bubble.path" }
                 step('aa') {
                     onError { msg << "err_$bubble.path" }
                     setup { msg << "setup_$bubble.path" }
                     cleanup { msg << "cleanup_$bubble.path" }
-                    onSuccess { msg << "suc_$bubble.path" }
                     step('aaa') {
                         onError { msg << "err_$bubble.path" }
                         setup { msg << "setup_$bubble.path" }
                         cleanup { msg << "cleanup_$bubble.path" }
-                        onSuccess { msg << "suc_$bubble.path" }
+                        action {
+                            msg << "action_$bubble.path"
+                            msg << "action_$current.path"
+                        }
                     }
                     step('aab') {
                         action {
+                            msg << "action_$bubble.path"
                             throw new RuntimeException('Test')
                         }
-                        onError { msg << "err_$bubble.path" }
+                        onError { msg << "err_$bubble.path"}
                         setup { msg << "setup_$bubble.path" }
                         cleanup { msg << "cleanup_$bubble.path" }
-                        onSuccess { msg << "suc_$bubble.path" }
                     }
                 }
             }
         }
         glow.start()
 
-        // TODO: Think onSuccess through
         then:
-        msg == ['setup_a', 'suc_a', 'setup_a.aa', 'suc_a.aa', 'setup_a.aa.aaa', 'suc_a.aa.aaa', 'setup_a.aa.aab', 'err_a.aa.aab', 'err_a.aa', 'err_a', 'err_glow', 'cleanup_a.aa.aab', 'cleanup_a.aa.aaa', 'cleanup_a.aa', 'cleanup_a']
+        msg == ['setup_a', 'cleanup_a', 'setup_a.aa', 'cleanup_a.aa', 'setup_a.aa.aaa', 'action_a.aa.aaa', 'action_a.aa.aaa', 'cleanup_a.aa.aaa', 'setup_a.aa.aab', 'action_a.aa.aab', 'err_a.aa.aab', 'err_a.aa', 'err_a', 'err_glow', 'cleanup_a.aa.aab']
+    }
+
+    void "Do exceptions in onError be handled correct?"() {
+        when:
+        def msg = []
+        Glow glow = builder.glow {
+            onError { msg << 'err_glow' }
+            step('a') {
+                onError { msg << "err_$bubble.path" }
+                step('aa') {
+                    onError { msg << "err_$bubble.path" }
+                    step('aaa') {
+                        onError { msg << "err_$bubble.path" }
+                        action {
+                            msg << "action_$bubble.path"
+                        }
+                    }
+                    step('aab') {
+                        action {
+                            msg << "action_$bubble.path"
+                            throw new RuntimeException('Test')
+                        }
+                        onError {
+                            msg << "err_$bubble.path"
+                            throw new RuntimeException('NULL')
+                        }
+                    }
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        def ex = thrown(RuntimeException)
+        ex.message == 'NULL'
+        msg == ['action_a.aa.aaa', 'action_a.aa.aab', 'err_a.aa.aab']
+    }
+
+    void "Does cancel work?"() {
+        when:
+        def msg = []
+        Glow glow = builder.glow {
+            onCancel { msg << 'cancel_glow' }
+            setup { msg << 'setup_glow' }
+            cleanup { msg << 'cleanup_glow' }
+            step('a') {
+                onCancel { msg << "cancel_$bubble.path" }
+                setup { msg << "setup_$bubble.path" }
+                cleanup { msg << "cleanup_$bubble.path" }
+                step('aa') {
+                    onCancel { msg << "cancel_$bubble.path" }
+                    setup { msg << "setup_$bubble.path" }
+                    cleanup { msg << "cleanup_$bubble.path" }
+                    step('aaa') {
+                        onCancel { msg << "cancel_$bubble.path" }
+                        setup { msg << "setup_$bubble.path" }
+                        cleanup { msg << "cleanup_$bubble.path" }
+                        action {
+                            msg << "action_$bubble.path"
+                        }
+                    }
+                    step('aab') {
+                        action {
+                            msg << "action_$bubble.path"
+                            cancel()
+                        }
+                        onCancel { msg << "cancel_$bubble.path"}
+                        setup { msg << "setup_$bubble.path" }
+                        cleanup { msg << "cleanup_$bubble.path" }
+                    }
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        msg == ['setup_a', 'cleanup_a', 'setup_a.aa', 'cleanup_a.aa', 'setup_a.aa.aaa', 'action_a.aa.aaa', 'cleanup_a.aa.aaa', 'setup_a.aa.aab', 'action_a.aa.aab', 'cancel_a.aa.aab', 'cancel_a.aa', 'cancel_a', 'cancel_glow', 'cleanup_a.aa.aab']
     }
 }
