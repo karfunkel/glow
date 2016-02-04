@@ -1,0 +1,2 @@
+- test start, end, duration
+- test status() and getStatus()

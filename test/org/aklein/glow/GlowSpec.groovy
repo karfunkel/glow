@@ -1,5 +1,6 @@
 package org.aklein.glow
 
+import spock.lang.Ignore
 import spock.lang.Specification
 
 class GlowSpec extends Specification {
@@ -237,7 +238,6 @@ class GlowSpec extends Specification {
     }
 
     void "Do all notations function the same?"() {
-
         when:
 
         Glow glow = builder.glow() {
@@ -261,14 +261,16 @@ class GlowSpec extends Specification {
     }
 
     void "Does retry work?"() {
-
         when:
         def counter = 0
 
         Glow glow = builder.glow() {
             step {
+                onCancel {
+                    throw new RuntimeException('NULL')
+                }
                 action {
-                    counter ++
+                    counter++
                     throw new RuntimeException('Test')
                 }
                 onError {
@@ -280,5 +282,17 @@ class GlowSpec extends Specification {
 
         then:
         counter == 3
+        glow.steps._0.$info.size() == 3
+        glow.steps._0.$info.action instanceof Map
+        glow.steps._0.$info.onError instanceof List
+        glow.steps._0.$info.onError.size() == 2
+        glow.steps._0.$info.onError[0].argument.message == 'Test'
+        glow.steps._0.$info.onError[1].argument.message == 'Test'
+        glow.steps._0.$info.onCancel.argument[0] == 'RETRY'
+        glow.steps._0.$info.onCancel.argument[1].message == 'Test'
+        def ex = thrown(RuntimeException)
+        ex.message == 'NULL'
     }
+
+    // TODO: Test $info
 }

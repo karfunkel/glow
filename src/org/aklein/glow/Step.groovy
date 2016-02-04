@@ -24,6 +24,9 @@ class Step {
     Closure onError
     Map attributes
 
+    Map<String, Map<String, Object>> $info = [:]
+    private Map<String, Object> currentInfo
+
     Glow getGlow() {
         if (glow == null && parent != null) {
             glow = parent.glow
@@ -114,7 +117,7 @@ class Step {
                             return null
                         } catch (ex) {
                             if (ex instanceof GlowException && ex.maximum) {  // Retry
-                                onEvent('onCancel', CANCEL_REASON_RETRY)
+                                onEvent('onCancel', CANCEL_REASON_RETRY, lastException)
                                 return null
                             } else
                                 return stepControl(ex, true)
@@ -128,7 +131,7 @@ class Step {
                         throw e
                     try {
                         onEvent('onError', e)
-                        onEvent('onCancel', CANCEL_REASON_ERROR)
+                        onEvent('onCancel', CANCEL_REASON_ERROR, e)
                         return null
                     } catch (ex) {
                         return stepControl(ex, true, e)
@@ -142,15 +145,78 @@ class Step {
         }
     }
 
+    Object getStatus() {
+        return currentInfo?.status
+    }
+
+    void setStatus(Object status) {
+        currentInfo?.status = status
+    }
+
     private def runClosure(Closure closure, Object... args) {
         if (closure) {
-            closure.delegate = getGlow()
-            closure.resolveStrategy = Closure.DELEGATE_FIRST
+            def meta = closure.delegate
             def oldBubble = getGlow().context.bubble
-            getGlow().context.bubble = this
-            def result = closure(*args)
-            getGlow().context.bubble = oldBubble
-            return result
+
+            boolean isRetry = retriesLeft >= 0
+
+            String key = meta.name
+            def info = this.$info[key]
+            if (info == null) {
+                info = [name: key]
+                this.$info[key] = info
+            } else if (info instanceof List){
+                def list = info
+                if(isRetry) {
+                    info = list.last()
+                } else {
+                    info = [name: key]
+                    list << info
+                }
+            } else {
+                if(!isRetry) {
+                    def old = info
+                    info = [name: key]
+                    this.$info[key] = [old, info]
+                }
+            }
+            currentInfo = info
+
+            try {
+                closure.delegate = getGlow()
+                closure.resolveStrategy = Closure.DELEGATE_FIRST
+                getGlow().context.bubble = this
+                currentInfo.remove('exception')
+                currentInfo.start = new Date()
+                if(args)
+                    currentInfo.argument = args.size() == 1 ? args[0] : [] + (args as List)
+                def result
+                if(closure.maximumNumberOfParameters < args.size() )
+                    result = closure(args)
+                else
+                    result = closure(*args)
+                currentInfo.end = new Date()
+                return result
+            } catch (e) {
+                currentInfo.end = new Date()
+                switch (e) {
+                    case GlowException.NEXT:
+                    case GlowException.PREVIOUS:
+                    case GlowException.NEXT_SIBLING:
+                    case GlowException.PREVIOUS_SIBLING:
+                    case GlowException.CANCEL:
+                    case { it instanceof GlowException && it.jumpStep }: // Jump
+                    case { it instanceof GlowException && it.maximum }:  // Retry
+                        break
+                    default:
+                        currentInfo.exception = e
+                }
+                throw e
+            } finally {
+                currentInfo.duration = currentInfo.end.time - currentInfo.start.time
+                getGlow().context.bubble = oldBubble
+                closure.delegate = meta
+            }
         }
         return null
     }

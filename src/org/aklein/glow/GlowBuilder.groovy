@@ -36,25 +36,31 @@ class GlowFactory extends AbstractFactory {
         Closure onError = attributes.remove('onError')
         Closure onCancel = attributes.remove('onCancel')
         Glow glow = new Glow()
-        if (setup) glow.setup = setup
-        if (cleanup) glow.cleanup = cleanup
-        if (onError) glow.onError = onError
-        if (onCancel) glow.onCancel = onCancel
+        if (setup) prepareAndStore('setup', glow, setup)
+        if (cleanup) prepareAndStore('cleanup', glow, cleanup)
+        if (onError) prepareAndStore('onError', glow, onError)
+        if (onCancel) prepareAndStore('onCancel', glow, onCancel)
         return glow
     }
 
     @Override
-    void onNodeCompleted( FactoryBuilderSupport builder, Object parent, Object node ) {
+    void onNodeCompleted(FactoryBuilderSupport builder, Object parent, Object node) {
         Glow glow = node
         glow.current = glow.firstChild
         Step lastStep = glow.firstChild
         Step nextStep
-        while(nextStep = lastStep?.next) {
+        while (nextStep = lastStep?.next) {
             nextStep.previousStep = lastStep
             lastStep = nextStep
             glow.current = glow.nextStep
         }
         glow.reset()
+    }
+
+    static void prepareAndStore(String name, Glow parent, Closure closure) {
+        closure.delegate = [name: name]
+        if (parent.hasProperty(name))
+            parent[name] = closure
     }
 }
 
@@ -69,14 +75,14 @@ class StepFactory extends AbstractFactory {
         Closure onCancel = attributes.remove('onCancel')
         Boolean autoNext = attributes.remove('autoNext')
         autoNext = autoNext == null ? true : autoNext
-        Step step = new Step(attributes: [*:attributes])
+        Step step = new Step(attributes: [*: attributes])
         step.autoNext = autoNext
         if (id) step.id = id
-        if (action) step.actions << action
-        if (setup) step.setup = setup
-        if (cleanup) step.cleanup = cleanup
-        if (onError) step.onError = onError
-        if (onCancel) step.onCancel = onCancel
+        if (action) prepareAndStore('action', step, action)
+        if (setup) prepareAndStore('setup', step, setup)
+        if (cleanup) prepareAndStore('cleanup', step, cleanup)
+        if (onError) prepareAndStore('onError', step, onError)
+        if (onCancel) prepareAndStore('onCancel', step, onCancel)
         attributes.clear()
         return step
     }
@@ -117,6 +123,14 @@ class StepFactory extends AbstractFactory {
             }
         }
     }
+
+    static void prepareAndStore(String name, Step parent, Closure closure) {
+        closure.delegate = [name: name]
+        if (!parent.hasProperty(name))
+            parent.actions << closure
+        else
+            parent[name] = closure
+    }
 }
 
 class ClosureFactory extends AbstractFactory {
@@ -134,21 +148,16 @@ class ClosureFactory extends AbstractFactory {
     @Override
     boolean onNodeChildren(FactoryBuilderSupport builder, Object node, Closure childContent) {
         def parent = builder.current
-        if (parent instanceof Step) {
-            if(!parent.hasProperty(event))
-                parent.actions << childContent
-            else
-                parent[event] = childContent
-        } else if (parent instanceof Glow) {
-            if(parent.hasProperty(event))
-                parent[event] = childContent
-        }
+        if (parent instanceof Step)
+            StepFactory.prepareAndStore(event, parent, childContent)
+         else if (parent instanceof Glow)
+            GlowFactory.prepareAndStore(event, parent, childContent)
         return false
     }
 
     @Override
     Object newInstance(FactoryBuilderSupport builder, Object name, Object value, Map attributes) throws InstantiationException, IllegalAccessException {
-        [:]
+        [name: name]
     }
 }
 

@@ -79,6 +79,18 @@ class Glow {
         return step()
     }
 
+    void status(Object status) {
+        setStatus(status)
+    }
+
+    void setStatus(Object status) {
+        current.status = status
+    }
+
+    Object getStatus() {
+        return current.status
+    }
+
     Step getNextStep() {
         if (!current)
             throw new GlowException('Glow has not been started')
@@ -124,7 +136,10 @@ class Glow {
     private def runClosure(Closure closure, Object... args) {
         closure.delegate = this
         closure.resolveStrategy = Closure.DELEGATE_FIRST
-        return closure(*args)
+        if(closure.maximumNumberOfParameters < args.size() )
+            return closure(args)
+        else
+            return closure(*args)
     }
 
     def propertyMissing(String name) {
