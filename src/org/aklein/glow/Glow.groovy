@@ -10,6 +10,7 @@ class Glow {
     }
 
     final static Closure DEFAULT_ACTION = {
+        status 'AUTO_NEXT'
         next()
     }
 
@@ -80,11 +81,7 @@ class Glow {
     }
 
     void status(Object status) {
-        setStatus(status)
-    }
-
-    void setStatus(Object status) {
-        current.status = status
+        current.setStatus(status)
     }
 
     Object getStatus() {

@@ -67,8 +67,9 @@ class Step {
     def call(Object... args) {
         def actionList = [] + actions
         if (autoNext) {
-            actionList << Glow.DEFAULT_ACTION
-            autoNext = false
+            Closure cls = Glow.DEFAULT_ACTION.clone()
+            cls.delegate = [name: 'action']
+            actionList << cls
         }
         try {
             onEvent('setup', false)
@@ -87,22 +88,28 @@ class Step {
             switch (e) {
                 case GlowException.NEXT:
                     getGlow().current.retriesLeft = -1
+                    onEvent('cleanup', false)
                     return getGlow().nextStep
                 case GlowException.PREVIOUS:
                     getGlow().current.retriesLeft = -1
+                    onEvent('cleanup', false)
                     return getGlow().previousStep
                 case GlowException.NEXT_SIBLING:
                     getGlow().current.retriesLeft = -1
+                    onEvent('cleanup', false)
                     return getGlow().nextSiblingStep
                 case GlowException.PREVIOUS_SIBLING:
                     getGlow().current.retriesLeft = -1
+                    onEvent('cleanup', false)
                     return getGlow().previousSiblingStep
                 case GlowException.CANCEL:
                     getGlow().current.retriesLeft = -1
                     onEvent('onCancel', CANCEL_REASON_MANUAL)
+                    onEvent('cleanup', false)
                     return null
                 case { it instanceof GlowException && it.jumpStep }: // Jump
                     getGlow().current.retriesLeft = -1
+                    onEvent('cleanup', false)
                     return e.jumpStep
                 case { it instanceof GlowException && it.maximum }:  // Retry
                     Step cur = getGlow().current
@@ -118,8 +125,10 @@ class Step {
                         } catch (ex) {
                             if (ex instanceof GlowException && ex.maximum) {  // Retry
                                 onEvent('onCancel', CANCEL_REASON_RETRY, lastException)
+                                onEvent('cleanup', false)
                                 return null
                             } else
+                                onEvent('cleanup', false)
                                 return stepControl(ex, true)
                         }
                     } else {
@@ -132,6 +141,7 @@ class Step {
                     try {
                         onEvent('onError', e)
                         onEvent('onCancel', CANCEL_REASON_ERROR, e)
+                        onEvent('cleanup', false)
                         return null
                     } catch (ex) {
                         return stepControl(ex, true, e)
@@ -140,8 +150,7 @@ class Step {
         } catch (ex) {
             throw ex
         } finally {
-            if (!rethrow)
-                onEvent('cleanup', false)
+
         }
     }
 
@@ -165,16 +174,16 @@ class Step {
             if (info == null) {
                 info = [name: key]
                 this.$info[key] = info
-            } else if (info instanceof List){
+            } else if (info instanceof List) {
                 def list = info
-                if(isRetry) {
+                if (isRetry) {
                     info = list.last()
                 } else {
                     info = [name: key]
                     list << info
                 }
             } else {
-                if(!isRetry) {
+                if (!isRetry) {
                     def old = info
                     info = [name: key]
                     this.$info[key] = [old, info]
@@ -188,10 +197,14 @@ class Step {
                 getGlow().context.bubble = this
                 currentInfo.remove('exception')
                 currentInfo.start = new Date()
-                if(args)
-                    currentInfo.argument = args.size() == 1 ? args[0] : [] + (args as List)
+                if (args) {
+                    if (currentInfo.name == 'onError')
+                        currentInfo.exception = args[0]
+                    else
+                        currentInfo.argument = args.size() == 1 ? args[0] : [] + (args as List)
+                }
                 def result
-                if(closure.maximumNumberOfParameters < args.size() )
+                if (closure.maximumNumberOfParameters < args.size())
                     result = closure(args)
                 else
                     result = closure(*args)

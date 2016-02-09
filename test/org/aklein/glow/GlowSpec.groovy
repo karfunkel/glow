@@ -1,6 +1,7 @@
 package org.aklein.glow
 
 import spock.lang.Ignore
+import spock.lang.Unroll
 import spock.lang.Specification
 
 class GlowSpec extends Specification {
@@ -286,8 +287,8 @@ class GlowSpec extends Specification {
         glow.steps._0.$info.action instanceof Map
         glow.steps._0.$info.onError instanceof List
         glow.steps._0.$info.onError.size() == 2
-        glow.steps._0.$info.onError[0].argument.message == 'Test'
-        glow.steps._0.$info.onError[1].argument.message == 'Test'
+        glow.steps._0.$info.onError[0].exception.message == 'Test'
+        glow.steps._0.$info.onError[1].exception.message == 'Test'
         glow.steps._0.$info.onCancel.argument[0] == 'RETRY'
         glow.steps._0.$info.onCancel.argument[1].message == 'Test'
         def ex = thrown(RuntimeException)
@@ -295,4 +296,132 @@ class GlowSpec extends Specification {
     }
 
     // TODO: Test $info
+    @Unroll
+    void "Does \$info work for #path #name?"() {
+        when:
+        def msg = []
+        def count = 0
+        Glow glow = builder.glow {
+            step('a') {
+                onCancel { msg << "cancel_$bubble.path" }
+                setup { msg << "setup_$bubble.path" }
+                cleanup { msg << "cleanup_$bubble.path" }
+                step('aa') {
+                    onCancel { msg << "cancel_$bubble.path" }
+                    setup { msg << "setup_$bubble.path" }
+                    cleanup { msg << "cleanup_$bubble.path" }
+                    step('aaa') {
+                        onCancel { msg << "cancel_$bubble.path" }
+                        setup { msg << "setup_$bubble.path" }
+                        cleanup { msg << "cleanup_$bubble.path" }
+                        action {
+                            status 'Test'
+                            msg << "action_$bubble.path"
+                        }
+                    }
+                    step('aab') {
+                        action {
+                            msg << "action_$bubble.path"
+                            if (count < 2) {
+                                count++
+                                throw new RuntimeException('NULL')
+                            }
+                        }
+                        onError {
+                            retry(3)
+                        }
+                        setup { msg << "setup_$bubble.path" }
+                        cleanup { msg << "cleanup_$bubble.path" }
+                    }
+                    step('aac') {
+                        action {
+                            msg << "action_$bubble.path"
+                            status 'OK'
+                            throw new RuntimeException('NULL')
+                        }
+                        onError {
+                            retry(3)
+                        }
+                        onCancel {
+                            status 'Failed'
+                            msg << "cancel_$bubble.path"
+                        }
+                        setup {
+                            msg << "setup_$bubble.path"
+                        }
+                        cleanup {
+                            msg << "cleanup_$bubble.path"
+                        }
+                    }
+                }
+            }
+            step('b') {
+                onCancel { msg << "cancel_$bubble.path" }
+                step('ba') {
+                    action {
+                        msg << "action_$bubble.path"
+                        cancel()
+                    }
+                    onCancel { msg << "cancel_$bubble.path" }
+                    setup { msg << "setup_$bubble.path" }
+                    cleanup { msg << "cleanup_$bubble.path" }
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        def info = path.split(/\./).inject(glow.steps) { parent, name -> return parent."$name" }
+        println info.$info
+        println glow.steps.a.aa.aab.dump()
+        testInfo(info.$info, name, keys, _status, argument, exception, message)
+
+        where:
+        path       | name       | keys                                                                                                   | _status               | argument | exception        | message
+        'a'        | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a'        | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a'        | 'action'   | ['name', 'start', 'end', 'duration', 'status']                                                         | 'AUTO_NEXT'           | null     | null             | null
+        'a.aa'     | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a.aa'     | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a.aa'     | 'action'   | ['name', 'start', 'end', 'duration', 'status']                                                         | 'AUTO_NEXT'           | null     | null             | null
+        'a.aa.aaa' | 'action'   | [['name', 'start', 'end', 'duration', 'status'], ['name', 'start', 'end', 'duration', 'status']]       | ['Test', 'AUTO_NEXT'] | null     | null             | null
+        'a.aa.aaa' | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a.aa.aaa' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a.aa.aab' | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a.aa.aab' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a.aa.aab' | 'action'   | ['name', 'start', 'end', 'duration', 'status']                                                         | 'AUTO_NEXT'           | null     | null             | null
+        'a.aa.aab' | 'onError'  | ['name', 'start', 'end', 'duration', 'exception']                                                      | null                  | null     | RuntimeException | 'NULL'
+        'a.aa.aac' | 'action'   | ['name', 'start', 'end', 'duration', 'exception', 'status']                                            | null                  | null     | null             | null
+        'a.aa.aac' | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a.aa.aac' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
+        'a.aa.aac' | 'onError'  | [['name', 'start', 'end', 'duration', 'exception'], ['name', 'start', 'end', 'duration', 'exception']] | []                    | null     | RuntimeException | 'NULL'
+        'a.aa.aac' | 'onCancel' | ['name', 'start', 'end', 'duration', 'argument', 'status']                                             | null                  | null     | null             | null
+        // TODO: continue
+    }
+
+    private void testInfo(
+            def info, String name, List keys, def status,
+            def argument, Class<? extends Throwable> exception, String message) {
+        def part = info."$name"
+        if (part instanceof List) {
+            part.eachWithIndex { p, idx ->
+                testPart(p, name, keys[idx], status[idx], argument, exception, message)
+            }
+        } else {
+            testPart(part, name, keys, status, argument, exception, message)
+        }
+    }
+
+    private void testPart(Map part, String name, List keys, def status,
+                          def argument, Class<? extends Throwable> exception, String message) {
+        assert part.keySet().sort() == keys.sort()
+        assert part.name == name
+        if ('start' in keys) assert part.start instanceof Date
+        if ('end' in keys) assert part.end instanceof Date
+        if ('duration' in keys) assert part.duration == part.end.time - part.start.time
+        if (status) assert part.status == status
+        if (argument) assert part.argument == argument
+        if (exception) assert part.exception.getClass().isAssignableFrom(exception)
+        if (message) assert part.exception.message == message
+    }
 }
