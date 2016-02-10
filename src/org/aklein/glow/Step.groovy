@@ -15,16 +15,17 @@ class Step {
     Step previousStep
     Map<String, Step> children = [:]
     List<Closure> actions = []
-
     int retriesLeft = -1
 
     Closure setup
+
     Closure cleanup
     Closure onCancel
     Closure onError
     Map attributes
-
     Map<String, Map<String, Object>> $info = [:]
+
+    private String _status
     private Map<String, Object> currentInfo
 
     Glow getGlow() {
@@ -155,10 +156,11 @@ class Step {
     }
 
     Object getStatus() {
-        return currentInfo?.status
+        return _status
     }
 
     void setStatus(Object status) {
+        this._status = status
         currentInfo?.status = status
     }
 

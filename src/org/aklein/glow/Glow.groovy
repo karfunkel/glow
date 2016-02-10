@@ -10,7 +10,6 @@ class Glow {
     }
 
     final static Closure DEFAULT_ACTION = {
-        status 'AUTO_NEXT'
         next()
     }
 

@@ -377,25 +377,25 @@ class GlowSpec extends Specification {
         testInfo(info.$info, name, keys, _status, argument, exception, message)
 
         where:
-        path       | name       | keys                                                                                                   | _status               | argument | exception        | message
-        'a'        | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a'        | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a'        | 'action'   | ['name', 'start', 'end', 'duration', 'status']                                                         | 'AUTO_NEXT'           | null     | null             | null
-        'a.aa'     | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a.aa'     | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a.aa'     | 'action'   | ['name', 'start', 'end', 'duration', 'status']                                                         | 'AUTO_NEXT'           | null     | null             | null
-        'a.aa.aaa' | 'action'   | [['name', 'start', 'end', 'duration', 'status'], ['name', 'start', 'end', 'duration', 'status']]       | ['Test', 'AUTO_NEXT'] | null     | null             | null
-        'a.aa.aaa' | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a.aa.aaa' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a.aa.aab' | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a.aa.aab' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a.aa.aab' | 'action'   | ['name', 'start', 'end', 'duration', 'status']                                                         | 'AUTO_NEXT'           | null     | null             | null
-        'a.aa.aab' | 'onError'  | ['name', 'start', 'end', 'duration', 'exception']                                                      | null                  | null     | RuntimeException | 'NULL'
-        'a.aa.aac' | 'action'   | ['name', 'start', 'end', 'duration', 'exception', 'status']                                            | null                  | null     | null             | null
-        'a.aa.aac' | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a.aa.aac' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null                  | null     | null             | null
-        'a.aa.aac' | 'onError'  | [['name', 'start', 'end', 'duration', 'exception'], ['name', 'start', 'end', 'duration', 'exception']] | []                    | null     | RuntimeException | 'NULL'
-        'a.aa.aac' | 'onCancel' | ['name', 'start', 'end', 'duration', 'argument', 'status']                                             | null                  | null     | null             | null
+        path       | name       | keys                                                                                                   | _status        | argument                                | exception        | message
+        'a'        | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a'        | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a'        | 'action'   | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa'     | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa'     | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa'     | 'action'   | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa.aaa' | 'action'   | [['name', 'start', 'end', 'duration', 'status'], ['name', 'start', 'end', 'duration']]                 | ['Test', null] | null                                    | null             | null
+        'a.aa.aaa' | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa.aaa' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa.aab' | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa.aab' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa.aab' | 'action'   | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa.aab' | 'onError'  | ['name', 'start', 'end', 'duration', 'exception']                                                      | null           | null                                    | RuntimeException | 'NULL'
+        'a.aa.aac' | 'action'   | ['name', 'start', 'end', 'duration', 'exception', 'status']                                            | 'OK'           | null                                    | RuntimeException | 'NULL'
+        'a.aa.aac' | 'setup'    | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa.aac' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
+        'a.aa.aac' | 'onError'  | [['name', 'start', 'end', 'duration', 'exception'], ['name', 'start', 'end', 'duration', 'exception']] | []             | null                                    | RuntimeException | 'NULL'
+        'a.aa.aac' | 'onCancel' | ['name', 'start', 'end', 'duration', 'argument', 'status']                                             | 'Failed'       | ['RETRY', new RuntimeException('NULL')] | null             | null
         // TODO: continue
     }
 
@@ -420,8 +420,77 @@ class GlowSpec extends Specification {
         if ('end' in keys) assert part.end instanceof Date
         if ('duration' in keys) assert part.duration == part.end.time - part.start.time
         if (status) assert part.status == status
-        if (argument) assert part.argument == argument
+        if (argument) assert part.argument.toString() == argument.toString()
         if (exception) assert part.exception.getClass().isAssignableFrom(exception)
         if (message) assert part.exception.message == message
+    }
+
+    @Ignore
+    void "Does status work?"() {
+        when:
+        def count = 0
+        Glow glow = builder.glow {
+            step('a') {
+                step('aa') {
+                    action {
+                        status 'aa'
+                    }
+                    step('aaa') {
+                        action {
+                            status 'aaa'
+                        }
+                    }
+                    step('aab') {
+                        action {
+                            status 'aab'
+                            if (count < 2) {
+                                count++
+                                throw new RuntimeException('NULL')
+                            }
+                        }
+                        onError {
+                            retry(3)
+                        }
+                    }
+                    step('aac') {
+                        action {
+                            status 'aac'
+                            throw new RuntimeException('NULL')
+                        }
+                        onError {
+                            status 'Failed'
+                            retry(3)
+                        }
+                    }
+                }
+            }
+            step('b') {
+                onCancel { msg << "cancel_$bubble.path" }
+                step('ba') {
+                    action {
+                        status 'ba'
+                        cancel()
+                    }
+                    onCancel {
+                        println "------------------"
+                        status 'Cancelled'
+                    }
+                }
+                step('bb') {
+                    action {
+                        status 'bb'
+                    }
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        glow.steps.a.aa.status == 'aa'
+        glow.steps.a.aa.aaa.status == 'aaa'
+        glow.steps.a.aa.aab.status == 'aab'
+        glow.steps.a.aa.aac.status == 'Failed'
+        glow.steps.b.ba.status == 'Cancelled'
+        glow.steps.b.bb.status == null
     }
 }
