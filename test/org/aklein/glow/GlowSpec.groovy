@@ -295,7 +295,6 @@ class GlowSpec extends Specification {
         ex.message == 'NULL'
     }
 
-    // TODO: Test $info
     @Unroll
     void "Does \$info work for #path #name?"() {
         when:
@@ -372,8 +371,6 @@ class GlowSpec extends Specification {
 
         then:
         def info = path.split(/\./).inject(glow.steps) { parent, name -> return parent."$name" }
-        println info.$info
-        println glow.steps.a.aa.aab.dump()
         testInfo(info.$info, name, keys, _status, argument, exception, message)
 
         where:
@@ -396,7 +393,41 @@ class GlowSpec extends Specification {
         'a.aa.aac' | 'cleanup'  | ['name', 'start', 'end', 'duration']                                                                   | null           | null                                    | null             | null
         'a.aa.aac' | 'onError'  | [['name', 'start', 'end', 'duration', 'exception'], ['name', 'start', 'end', 'duration', 'exception']] | []             | null                                    | RuntimeException | 'NULL'
         'a.aa.aac' | 'onCancel' | ['name', 'start', 'end', 'duration', 'argument', 'status']                                             | 'Failed'       | ['RETRY', new RuntimeException('NULL')] | null             | null
-        // TODO: continue
+    }
+
+    @Unroll
+    void "Does \$info work for #path #name with cancel?"() {
+        when:
+        def msg = []
+        Glow glow = builder.glow {
+            step('b') {
+                onCancel { msg << "cancel_$bubble.path" }
+                step('ba') {
+                    action {
+                        msg << "action_$bubble.path"
+                        cancel()
+                    }
+                    onCancel { msg << "cancel_$bubble.path" }
+                    setup { msg << "setup_$bubble.path" }
+                    cleanup { msg << "cleanup_$bubble.path" }
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        def info = path.split(/\./).inject(glow.steps) { parent, name -> return parent."$name" }
+        println info.$info
+        testInfo(info.$info, name, keys, _status, argument, exception, message)
+
+        where:
+        path   | name       | keys                                             | _status | argument | exception | message
+        'b'    | 'onCancel' | ['name', 'start', 'end', 'duration', 'argument'] | null    | 'MANUAL' | null      | null
+        'b'    | 'action'   | ['name', 'start', 'end', 'duration']             | null    | null     | null      | null
+        'b.ba' | 'action'   | ['name', 'start', 'end', 'duration']             | null    | null     | null      | null
+        'b.ba' | 'setup'    | ['name', 'start', 'end', 'duration']             | null    | null     | null      | null
+        'b.ba' | 'cleanup'  | ['name', 'start', 'end', 'duration']             | null    | null     | null      | null
+        'b.ba' | 'onCancel' | ['name', 'start', 'end', 'duration', 'argument'] | null    | 'MANUAL' | null      | null
     }
 
     private void testInfo(
@@ -425,7 +456,7 @@ class GlowSpec extends Specification {
         if (message) assert part.exception.message == message
     }
 
-    @Ignore
+    //@Ignore
     void "Does status work?"() {
         when:
         def count = 0
@@ -490,7 +521,33 @@ class GlowSpec extends Specification {
         glow.steps.a.aa.aaa.status == 'aaa'
         glow.steps.a.aa.aab.status == 'aab'
         glow.steps.a.aa.aac.status == 'Failed'
+
+        when:
+        glow = builder.glow {
+            step('b') {
+                onCancel { msg << "cancel_$bubble.path" }
+                step('ba') {
+                    action {
+                        status 'ba'
+                        cancel()
+                    }
+                    onCancel {
+                        println "------------------"
+                        status 'Cancelled'
+                    }
+                }
+                step('bb') {
+                    action {
+                        status 'bb'
+                    }
+                }
+            }
+        }
+        glow.start()
+
+        then:
         glow.steps.b.ba.status == 'Cancelled'
         glow.steps.b.bb.status == null
+
     }
 }
