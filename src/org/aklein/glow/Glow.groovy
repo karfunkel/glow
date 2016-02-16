@@ -159,8 +159,12 @@ class Glow {
     }
 
     def methodMissing(String name, def args) {
-        def caller = this."$name"
-        return caller?.call(args)
+        try {
+            def caller = this.metaClass.getProperty(this, name)
+            return caller.call(args)
+        } catch(MissingPropertyException e) {
+            throw new MissingMethodException(name, Glow, args, false)
+        }
     }
 }
 

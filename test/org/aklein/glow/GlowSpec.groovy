@@ -532,88 +532,6 @@ class GlowSpec extends Specification {
         glow.steps.b.bb.status == null
     }
 
-    /*
-    def "Test stepwise iteration"() {
-        setup:
-        Glow glow = builder.glow {
-            step('a') {
-                step('aa') {
-                    action {
-                        status 'aa'
-                    }
-                    step('aaa') {
-                        action {
-                            status 'aaa'
-                        }
-                    }
-                    step('aab') {
-                        action {
-                            status 'aab'
-                            if (count < 2) {
-                                count++
-                                throw new RuntimeException('NULL')
-                            }
-                        }
-                        onError {
-                            retry(3)
-                        }
-                    }
-                    step('aac') {
-                        action {
-                            status 'aac'
-                            throw new RuntimeException('NULL')
-                        }
-                        onError {
-                            status 'Failed'
-                            retry(3)
-                        }
-                    }
-                }
-            }
-        }
-        glow.current = glow.firstChild
-        Step lastStep = glow.firstChild
-        Step nextStep = lastStep?.next
-        glow.current.autoNext = false
-        glow.call(glow.current)
-
-        expect:
-        glow.current == glow.steps.a
-
-        when:
-        lastStep = nextStep
-        glow.current.autoNext = false
-        glow.call(glow.nextStep)
-
-        then:
-        glow.current == glow.steps.a.aa
-
-        when:
-        lastStep = nextStep
-        glow.current.autoNext = false
-        glow.call(glow.nextStep)
-
-        then:
-        glow.current == glow.steps.a.aa.aaa
-
-        when:
-        lastStep = nextStep
-        glow.current.autoNext = false
-        glow.call(glow.current)
-
-        then:
-        glow.current == glow.steps.a.aa.aab
-
-        when:
-        lastStep = nextStep
-        glow.current.autoNext = false
-        glow.call(glow.current)
-
-        then:
-        glow.current == glow.steps.a.aa.aac
-    }
-    */
-
     @Unroll
     def "Test stepwise iteration: path '#path', type '#type'"() {
         setup:
@@ -660,7 +578,6 @@ class GlowSpec extends Specification {
         def eventFound = false
         glow.addStepListener { StepEvent event ->
             if (event.source.path == path && event.type == type && event.count == eventCount) {
-                println event.dump()
                 eventFound = true
                 check(event)
             }
@@ -708,4 +625,31 @@ class GlowSpec extends Specification {
             assert event.exception.toString() == new RuntimeException('NULL').toString()
         }
     }
+
+    def "Test accessing outside methods"() {
+        setup:
+        Glow glow = builder.glow {
+            step('a') {
+                step('aa') {
+                    action {
+                        status method1()
+                    }
+                    onError {
+                        it.printStackTrace()
+                        status('Failed')
+                    }
+                }
+            }
+        }
+
+        when:
+        glow.start()
+
+        then:
+        glow.steps.a.aa.status == 'Method1'
+    }
+
+    private String method1() { return 'Method1'}
+
+
 }
