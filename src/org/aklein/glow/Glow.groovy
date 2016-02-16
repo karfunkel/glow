@@ -1,5 +1,7 @@
 package org.aklein.glow
 
+import groovy.beans.ListenerList
+
 class Glow {
     final static Closure CONTINUE = {
         next()
@@ -13,6 +15,9 @@ class Glow {
         next()
     }
 
+    @ListenerList
+    List<StepListener> stepListeners
+
     Step current
     Map<String, Step> steps = [:]
     Map<String, Object> context = [:]
@@ -22,6 +27,8 @@ class Glow {
     Closure cleanup
     Closure onCancel
     Closure onError
+
+    int eventCount = 0
 
     Glow(Map<String, Object> context = [:]) {
         this.context = context
@@ -42,6 +49,7 @@ class Glow {
         if (!steps) {
             throw new GlowException('Cannot start a glow without steps')
         }
+        eventCount = 0
         current = firstChild
         current.call()
     }
@@ -67,11 +75,11 @@ class Glow {
     }
 
     void jump(Step to) {
-        throw new GlowException(jumpStep: to)
+        throw new GlowException(to)
     }
 
     void retry(int maximum = 1) {
-        throw new GlowException(maximum: maximum)
+        throw new GlowException(maximum)
     }
 
     def call(Step step) {
@@ -118,6 +126,7 @@ class Glow {
     }
 
     void reset() {
+        eventCount = 0
         current = null
     }
 
@@ -132,14 +141,14 @@ class Glow {
     private def runClosure(Closure closure, Object... args) {
         closure.delegate = this
         closure.resolveStrategy = Closure.DELEGATE_FIRST
-        if(closure.maximumNumberOfParameters < args.size() )
+        if (closure.maximumNumberOfParameters < args.size())
             return closure(args)
         else
             return closure(*args)
     }
 
     def propertyMissing(String name) {
-        if(context.containsKey(name))
+        if (context.containsKey(name))
             context[name]
         else
             throw new MissingPropertyException(name, Glow)
@@ -152,5 +161,37 @@ class Glow {
     def methodMissing(String name, def args) {
         def caller = this."$name"
         return caller?.call(args)
+    }
+}
+
+interface StepListener extends EventListener {
+    void stepFinished(StepEvent event);
+}
+
+class StepEvent {
+    Step source
+    String path
+    GlowActionType type
+    Throwable exception
+    Step jumpStep = null
+    int retryMaximum = 0
+    int count
+
+    StepEvent(Step source, Throwable exception, int count = 0) {
+        this.source = source
+        this.path = source.path
+        this.type = GlowActionType.EXCEPTION
+        this.exception = exception
+        this.count = count
+    }
+
+    StepEvent(Step source, GlowException exception, int count = 0) {
+        this.source = source
+        this.path = source.path
+        this.type = exception.type
+        this.exception = exception
+        this.jumpStep = exception.jumpStep
+        this.retryMaximum = exception.maximum
+        this.count = count
     }
 }

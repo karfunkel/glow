@@ -108,11 +108,11 @@ class Step {
                     onEvent('onCancel', CANCEL_REASON_MANUAL)
                     onEvent('cleanup', false)
                     return null
-                case { it instanceof GlowException && it.jumpStep }: // Jump
+                case { it instanceof GlowException && it.type == GlowActionType.JUMP }:
                     getGlow().current.retriesLeft = -1
                     onEvent('cleanup', false)
                     return e.jumpStep
-                case { it instanceof GlowException && it.maximum }:  // Retry
+                case { it instanceof GlowException && it.type == GlowActionType.RETRY }:
                     Step cur = getGlow().current
                     if (cur.retriesLeft == -1) { // First time
                         cur.retriesLeft = e.maximum
@@ -130,7 +130,7 @@ class Step {
                                 return null
                             } else
                                 onEvent('cleanup', false)
-                                return stepControl(ex, true)
+                            return stepControl(ex, true)
                         }
                     } else {
                         cur.retriesLeft--
@@ -151,7 +151,7 @@ class Step {
         } catch (ex) {
             throw ex
         } finally {
-
+            glow.fireStepFinished(new StepEvent(this, e, glow.eventCount++))
         }
     }
 
@@ -220,8 +220,8 @@ class Step {
                     case GlowException.NEXT_SIBLING:
                     case GlowException.PREVIOUS_SIBLING:
                     case GlowException.CANCEL:
-                    case { it instanceof GlowException && it.jumpStep }: // Jump
-                    case { it instanceof GlowException && it.maximum }:  // Retry
+                    case { it instanceof GlowException && it.type == GlowActionType.JUMP }:
+                    case { it instanceof GlowException && it.type == GlowActionType.RETRY }:
                         break
                     default:
                         currentInfo.exception = e
@@ -271,5 +271,9 @@ class Step {
     def methodMissing(String name, def args) {
         def caller = this."$name"
         return caller?.call(args)
+    }
+
+    String toString() {
+        return "Step(${this.path})"
     }
 }

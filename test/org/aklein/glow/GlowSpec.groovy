@@ -495,24 +495,6 @@ class GlowSpec extends Specification {
                     }
                 }
             }
-            step('b') {
-                onCancel { msg << "cancel_$bubble.path" }
-                step('ba') {
-                    action {
-                        status 'ba'
-                        cancel()
-                    }
-                    onCancel {
-                        println "------------------"
-                        status 'Cancelled'
-                    }
-                }
-                step('bb') {
-                    action {
-                        status 'bb'
-                    }
-                }
-            }
         }
         glow.start()
 
@@ -548,6 +530,182 @@ class GlowSpec extends Specification {
         then:
         glow.steps.b.ba.status == 'Cancelled'
         glow.steps.b.bb.status == null
+    }
 
+    /*
+    def "Test stepwise iteration"() {
+        setup:
+        Glow glow = builder.glow {
+            step('a') {
+                step('aa') {
+                    action {
+                        status 'aa'
+                    }
+                    step('aaa') {
+                        action {
+                            status 'aaa'
+                        }
+                    }
+                    step('aab') {
+                        action {
+                            status 'aab'
+                            if (count < 2) {
+                                count++
+                                throw new RuntimeException('NULL')
+                            }
+                        }
+                        onError {
+                            retry(3)
+                        }
+                    }
+                    step('aac') {
+                        action {
+                            status 'aac'
+                            throw new RuntimeException('NULL')
+                        }
+                        onError {
+                            status 'Failed'
+                            retry(3)
+                        }
+                    }
+                }
+            }
+        }
+        glow.current = glow.firstChild
+        Step lastStep = glow.firstChild
+        Step nextStep = lastStep?.next
+        glow.current.autoNext = false
+        glow.call(glow.current)
+
+        expect:
+        glow.current == glow.steps.a
+
+        when:
+        lastStep = nextStep
+        glow.current.autoNext = false
+        glow.call(glow.nextStep)
+
+        then:
+        glow.current == glow.steps.a.aa
+
+        when:
+        lastStep = nextStep
+        glow.current.autoNext = false
+        glow.call(glow.nextStep)
+
+        then:
+        glow.current == glow.steps.a.aa.aaa
+
+        when:
+        lastStep = nextStep
+        glow.current.autoNext = false
+        glow.call(glow.current)
+
+        then:
+        glow.current == glow.steps.a.aa.aab
+
+        when:
+        lastStep = nextStep
+        glow.current.autoNext = false
+        glow.call(glow.current)
+
+        then:
+        glow.current == glow.steps.a.aa.aac
+    }
+    */
+
+    @Unroll
+    def "Test stepwise iteration: path '#path', type '#type'"() {
+        setup:
+        def count = 0
+        Glow glow = builder.glow {
+            step('a') {
+                step('aa') {
+                    action {
+                        status 'aa'
+                    }
+                    step('aaa') {
+                        action {
+                            status 'aaa'
+                        }
+                    }
+                    step('aab') {
+                        action {
+                            status 'aab'
+                            if (count < 2) {
+                                count++
+                                throw new RuntimeException('NULL')
+                            }
+                        }
+                        onError {
+                            status('Failed')
+                            retry(3)
+                        }
+                    }
+                    step('aac') {
+                        action {
+                            status 'aac'
+                            throw new RuntimeException('NULL')
+                        }
+                        onError {
+                            status 'Failed'
+                            retry(3)
+                        }
+                    }
+                }
+            }
+        }
+
+        when:
+        def eventFound = false
+        glow.addStepListener { StepEvent event ->
+            if (event.source.path == path && event.type == type && event.count == eventCount) {
+                println event.dump()
+                eventFound = true
+                check(event)
+            }
+        }
+        glow.start()
+
+        then:
+        eventFound
+
+        where:
+
+        path       | type                     | eventCount | check
+        'a'        | GlowActionType.NEXT      | 0          | { StepEvent event -> assert true }
+        'a.aa'     | GlowActionType.NEXT      | 1          | { StepEvent event -> assert event.source.status == 'aa' }
+        'a.aa.aaa' | GlowActionType.NEXT      | 2          | { StepEvent event -> assert event.source.status == 'aaa' }
+        'a.aa.aab' | GlowActionType.RETRY     | 3          | { StepEvent event -> assert event.source.status == 'Failed' }
+        'a.aa.aab' | GlowActionType.EXCEPTION | 4          | { StepEvent event ->
+            assert event.source.status == 'Failed'
+            assert event.exception.toString() == new RuntimeException('NULL').toString()
+        }
+        'a.aa.aab' | GlowActionType.RETRY     | 5          | { StepEvent event -> assert event.source.status == 'Failed' }
+        'a.aa.aab' | GlowActionType.EXCEPTION | 6          | { StepEvent event ->
+            assert event.source.status == 'Failed'
+            assert event.exception.toString() == new RuntimeException('NULL').toString()
+        }
+        'a.aa.aab' | GlowActionType.NEXT      | 7          | { StepEvent event -> assert event.source.status == 'aab' }
+        'a.aa.aac' | GlowActionType.RETRY     | 8          | { StepEvent event -> assert event.source.status == 'Failed' }
+        'a.aa.aac' | GlowActionType.EXCEPTION | 9          | { StepEvent event ->
+            assert event.source.status == 'Failed'
+            assert event.exception.toString() == new RuntimeException('NULL').toString()
+        }
+        'a.aa.aac' | GlowActionType.RETRY     | 10         | { StepEvent event -> assert event.source.status == 'Failed' }
+        'a.aa.aac' | GlowActionType.EXCEPTION | 11         | { StepEvent event ->
+            assert event.source.status == 'Failed'
+            assert event.exception.toString() == new RuntimeException('NULL').toString()
+        }
+        'a.aa.aac' | GlowActionType.RETRY     | 12         | { StepEvent event -> assert event.source.status == 'Failed' }
+        'a.aa.aac' | GlowActionType.EXCEPTION | 13         | { StepEvent event ->
+            assert event.source.status == 'Failed'
+            assert event.exception.toString() == new RuntimeException('NULL').toString()
+        }
+        'a.aa.aac' | GlowActionType.RETRY     | 14         | { StepEvent event -> assert event.source.status == 'Failed' }
+        'a.aa.aac' | GlowActionType.EXCEPTION | 15         | { StepEvent event ->
+            assert event.source.status == 'Failed'
+            assert event.exception.toString() == new RuntimeException('NULL').toString()
+        }
     }
 }
