@@ -651,5 +651,34 @@ class GlowSpec extends Specification {
 
     private String method1() { return 'Method1'}
 
+    @Ignore
+    def "Test glow events"() {
+        setup:
+        Glow glow = builder.glow {
+            step('a') {
+                step('aa') {
+                    action {
+                        status 'aa'
+                    }
+                }
+                step('ab') {
+                    action {
+                        status 'ab'
+                    }
+                    onError {
+                        it.printStackTrace()
+                        status('Failed')
+                    }
+                }
+            }
+        }
+
+        when:
+        glow.start()
+
+        then:
+        glow.steps.a.aa.status == 'Method1'
+    }
+
 
 }

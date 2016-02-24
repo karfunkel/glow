@@ -168,8 +168,13 @@ class Glow {
     }
 }
 
-interface StepListener extends EventListener {
-    void stepFinished(StepEvent event);
+abstract class StepListener implements EventListener {
+    abstract void stepFinished(StepEvent event)
+    void stepStarted(StepEvent event){}
+    void stepSkipped(StepEvent event){}
+    void stepFailed(StepEvent event){}
+    void stepCanceled(StepEvent event){}
+    void stepRetrying(StepEvent event){}
 }
 
 class StepEvent {
@@ -178,6 +183,7 @@ class StepEvent {
     GlowActionType type
     Throwable exception
     Step jumpStep = null
+    Object[] arguments = null
     int retryMaximum = 0
     int count
 
@@ -192,10 +198,19 @@ class StepEvent {
     StepEvent(Step source, GlowException exception, int count = 0) {
         this.source = source
         this.path = source.path
-        this.type = exception.type
+        this.type = exception?.type ?: GlowActionType.START
         this.exception = exception
-        this.jumpStep = exception.jumpStep
-        this.retryMaximum = exception.maximum
+        this.jumpStep = exception?.jumpStep
+        this.retryMaximum = exception?.maximum ?: 0
+        this.count = count
+    }
+
+    StepEvent(Step source, GlowActionType type, Object[] arguments, int count = 0) {
+        this.source = source
+        this.path = source.path
+        this.type = type
+        this.arguments = arguments
+        this.exception = arguments.find{ it instanceof Throwable }
         this.count = count
     }
 }

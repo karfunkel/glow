@@ -18,7 +18,6 @@ class Step {
     int retriesLeft = -1
 
     Closure setup
-
     Closure cleanup
     Closure onCancel
     Closure onError
@@ -66,6 +65,7 @@ class Step {
     }
 
     def call(Object... args) {
+        glow.fireStepStarted(new StepEvent(this, null, glow.eventCount))
         def actionList = [] + actions
         if (autoNext) {
             Closure cls = Glow.DEFAULT_ACTION.clone()
@@ -113,6 +113,7 @@ class Step {
                     onEvent('cleanup', false)
                     return e.jumpStep
                 case { it instanceof GlowException && it.type == GlowActionType.RETRY }:
+                    glow.fireStepRetrying(new StepEvent(this, e, glow.eventCount))
                     Step cur = getGlow().current
                     if (cur.retriesLeft == -1) { // First time
                         cur.retriesLeft = e.maximum
@@ -242,8 +243,13 @@ class Step {
         def oldBubble = getGlow().context.bubble
         getGlow().context.bubble = this
         try {
-            if (closure)
+            if (closure) {
+                if(event == 'onCancel')
+                    glow.fireStepCanceled(new StepEvent(this, GlowActionType.CANCEL, args, glow.eventCount))
+                else if(event == 'onError')
+                    glow.fireStepFailed(new StepEvent(this, GlowActionType.EXCEPTION, args, glow.eventCount))
                 bubble = runClosure(closure, args)
+            }
             if (bubbling && bubble) {
                 if (parent)
                     return parent.onEvent(event, args)
