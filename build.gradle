@@ -55,14 +55,15 @@ bintray {
     def projectDescription = project.description
 
     pkg {
-        repo = 'maven' // or your repo name
+        repo = 'glow' // or your repo name
         name = projectName      // somehow project.* doesn't work in this closure
-        userOrg = 'bintray_user'
+        userOrg = 'karfunkel'
         desc = projectDescription
         licenses = ['Apache-2.0']
-        vcsUrl = 'https://github.com/bintray/gradle-bintray-plugin.git'
+        vcsUrl = 'https://github.com/karfunkel/glow.git'
     }
-    dryRun = true // whether to run this as dry-run, without deploying
+    publications = ['groovyMaven']
+    dryRun = false // whether to run this as dry-run, without deploying
 }
 
 String getPropertyOrUseDefault(String propertyName, String defaultValue) {
