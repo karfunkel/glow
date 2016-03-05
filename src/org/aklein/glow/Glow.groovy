@@ -130,12 +130,13 @@ class Glow {
         current = null
     }
 
-    boolean onEvent(String event, Closure defaultAction = null, Object... args) {
+    def onEvent(String event, Closure defaultAction = null, Object... args) {
         Closure closure = this."$event" ?: defaultAction
         context.remove('bubble')
         if (closure)
-            runClosure(closure, args)
-        return false
+            return runClosure(closure, args)
+        else
+            return null
     }
 
     private def runClosure(Closure closure, Object... args) {

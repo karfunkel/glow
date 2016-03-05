@@ -1,9 +1,5 @@
 apply plugin: 'groovy'
 
-group = "org.aklein.glow"
-version = "0.1"
-description = "An awesome groovy library"
-
 repositories {
     jcenter()
 }
@@ -22,6 +18,20 @@ task wrapper(type: Wrapper) {
     gradleVersion = '2.9'
 }
 
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives sourcesJar, javadocJar
+}
+
 // code below this can be safely removed if you don't want publish library ever
 
 buildscript {
@@ -29,39 +39,43 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.4'
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.5'
     }
 }
 
-apply plugin:"com.jfrog.bintray"
+apply plugin: "com.jfrog.bintray"
 apply plugin: 'maven-publish'
+
+def projectName = project.name
+def projectDescription = project.description
 
 publishing {
     publications {
         groovyMaven(MavenPublication) {
             from components.java
+            groupId group
+            artifactId projectName
+            version version
+
+            artifact sourcesJar
+            artifact javadocJar
         }
     }
 }
 
 // set bintrayUser & bintrayKey in gradle.properties
 bintray {
-
     user = getPropertyOrUseDefault("bintrayUser", "fake_user")
     key = getPropertyOrUseDefault("bintrayKey", "fake_key")
-    publications = ['groovyMaven']
-
-    def projectName = project.name
-    def projectDescription = project.description
-
     pkg {
-        repo = 'glow' // or your repo name
+        repo = 'glow'           // or your repo name
         name = projectName      // somehow project.* doesn't work in this closure
         userOrg = 'karfunkel'
         desc = projectDescription
         licenses = ['Apache-2.0']
         vcsUrl = 'https://github.com/karfunkel/glow.git'
     }
+
     publications = ['groovyMaven']
     dryRun = false // whether to run this as dry-run, without deploying
 }

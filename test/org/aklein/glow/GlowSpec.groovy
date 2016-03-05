@@ -78,7 +78,10 @@ class GlowSpec extends Specification {
         when:
         def msg = []
         Glow glow = builder.glow {
-            onError { msg << 'err_glow' }
+            onError {
+                msg << 'err_glow'
+                return false
+            }
             setup { msg << 'setup_glow' }
             cleanup { msg << 'cleanup_glow' }
             step('a') {
@@ -505,6 +508,7 @@ class GlowSpec extends Specification {
         glow.steps.a.aa.aac.status == 'Failed'
 
         when:
+        def msg = []
         glow = builder.glow {
             step('b') {
                 onCancel { msg << "cancel_$bubble.path" }
@@ -680,5 +684,134 @@ class GlowSpec extends Specification {
         glow.steps.a.aa.status == 'Method1'
     }
 
+    def "Does throwing without onError work?"() {
+        when:
 
+        Glow glow = builder.glow() {
+            step {
+                action {
+                    throw new RuntimeException('Test')
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        def e = thrown(RuntimeException)
+        e.message == 'Test'
+    }
+
+    def "Does throwing with onError work?"() {
+        when:
+
+        Glow glow = builder.glow() {
+            step {
+                action {
+                    throw new RuntimeException('Test')
+                }
+                onError {
+                    true
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        def e = thrown(RuntimeException)
+        e.message == 'Test'
+    }
+
+    def "Does throwing with onError on higher level work?"() {
+        when:
+
+        Glow glow = builder.glow() {
+            step {
+                onError {
+                    true
+                }
+                step {
+                    action {
+                        throw new RuntimeException('Test')
+                    }
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        def e = thrown(RuntimeException)
+        e.message == 'Test'
+    }
+
+    def "Does not throwing with onError on higher level work?"() {
+        expect:
+        Glow glow = builder.glow() {
+            step {
+                onError {
+                    false
+                }
+                step {
+                    action {
+                        throw new RuntimeException('Test')
+                    }
+                }
+            }
+        }
+        glow.start()
+    }
+
+    def "Does throwing with onError on top level work?"() {
+        when:
+
+        Glow glow = builder.glow() {
+            onError {
+                true
+            }
+            step {
+                step {
+                    action {
+                        throw new RuntimeException('Test')
+                    }
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        def e = thrown(RuntimeException)
+        e.message == 'Test'
+    }
+
+    def "Does not throwing with onError on top level work?"() {
+        expect:
+        Glow glow = builder.glow() {
+            onError {
+                false
+            }
+            step {
+                step {
+                    action {
+                        throw new RuntimeException('Test')
+                    }
+                }
+            }
+        }
+        glow.start()
+    }
+
+    def "Does not throwing with onError work?"() {
+        expect:
+
+        Glow glow = builder.glow() {
+            step {
+                action {
+                    throw new RuntimeException('Test')
+                }
+                onError {
+                    false
+                }
+            }
+        }
+        glow.start()
+    }
 }

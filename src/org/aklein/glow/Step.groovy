@@ -244,17 +244,26 @@ class Step {
         getGlow().context.bubble = this
         try {
             if (closure) {
-                if(event == 'onCancel')
+                if (event == 'onCancel')
                     glow.fireStepCanceled(new StepEvent(this, GlowActionType.CANCEL, args, glow.eventCount))
-                else if(event == 'onError')
+                else if (event == 'onError')
                     glow.fireStepFailed(new StepEvent(this, GlowActionType.EXCEPTION, args, glow.eventCount))
-                bubble = runClosure(closure, args)
+                def result = runClosure(closure, args)
+                if (result == null)
+                    bubble = true
+                else
+                    bubble = result
             }
             if (bubbling && bubble) {
                 if (parent)
                     return parent.onEvent(event, args)
-                else
+                else if (event == 'onError') {
+                    def result = getGlow().onEvent(event, args)
+                    if (result == null || result)
+                        throw args[0]
+                } else {
                     return getGlow().onEvent(event, args)
+                }
             }
             return false
         } finally {
