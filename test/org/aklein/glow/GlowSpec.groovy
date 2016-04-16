@@ -814,4 +814,58 @@ class GlowSpec extends Specification {
         }
         glow.start()
     }
+
+    def "Does duration work?"() {
+        when:
+        Glow glow = builder.glow() {
+            step (name: 'aa'){
+                action {
+                    Thread.sleep(1000)
+                }
+            }
+            step (name: 'ab'){
+                action {
+                    Thread.sleep(2000)
+                }
+            }
+        }
+        glow.start()
+
+        then:
+        glow.steps.values().find{it.name=="aa"}.$info.action[0].duration > 1000
+        glow.steps.values().find{it.name=="ab"}.$info.action[0].duration > 2000
+    }
+
+    def "Does jump onError work?"() {
+        when:
+        Glow glow = builder.glow() {
+            step (name: 'aa'){
+                onError {
+                    jump(steps.find{it.value.description == "cleanup"}.value)
+                }
+                action{
+                    throw new RuntimeException('Test')
+                }
+            }
+            step (name: 'ab'){
+                action{
+                    status "complete"
+                }
+            }
+            step (description: 'cleanup'){
+                action {
+                    status "complete"
+                }
+            }
+        }
+        glow.steps.each {
+            it.value.status = "not started"
+        }
+        glow.start()
+
+        then:
+        glow.steps.find{it.value.name=="ab"}.value.status == "not started"
+        glow.steps.find{it.value.description=="cleanup"}.value.status == "complete"
+
+    }
 }
